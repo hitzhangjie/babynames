@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,10 +13,42 @@ import (
 	iconv "github.com/djimenez/iconv-go"
 )
 
+var count = flag.Int("count", 10, "指定字库拉取次数(1次120个名字)")
+var sout = flag.String("single-out", "single.out", "指定单名字库输出文件")
+var dout = flag.String("double-out", "double.out", "指定双名字库输出文件")
+
 var doubleNames = []string{}
 var singleNames = []string{}
 
+func init() {
+	flag.Parse()
+}
+
 func main() {
+	for i := 0; i < *count; i++ {
+		single, double := mustFetchNames()
+
+		singleNames = append(singleNames, single...)
+		doubleNames = append(doubleNames, double...)
+	}
+
+	mustWriteFile(singleNames, *sout)
+	mustWriteFile(doubleNames, *dout)
+}
+
+func mustWriteFile(names []string, out string) {
+	b := &bytes.Buffer{}
+	for _, n := range names {
+		fmt.Fprintf(b, "%s\n", n)
+	}
+	err := ioutil.WriteFile(out, b.Bytes(), 0666)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func mustFetchNames() (singleNames, doubleNames []string) {
+
 	api := "https://www.sheup.net/mingzi_girl_1.php"
 
 	p := url.Values{}
@@ -43,7 +76,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("http resp headers: \n%v\n", rsp.Header)
+	//fmt.Printf("http resp headers: \n%v\n", rsp.Header)
 
 	out, err := iconv.ConvertString(string(dat), "GB2312", "UTF-8")
 	if err != nil {
@@ -74,11 +107,13 @@ func main() {
 		}
 	})
 
-	fmt.Println("singleNames " + strings.Repeat("-", 120))
-	fmt.Println(singleNames)
-	fmt.Println()
+	//fmt.Println("singleNames " + strings.Repeat("-", 120))
+	//fmt.Println(singleNames)
+	//fmt.Println()
+	//
+	//fmt.Println("doubleNames " + strings.Repeat("-", 120))
+	//fmt.Println(doubleNames)
+	//fmt.Println()
 
-	fmt.Println("doubleNames " + strings.Repeat("-", 120))
-	fmt.Println(doubleNames)
-	fmt.Println()
+	return
 }
