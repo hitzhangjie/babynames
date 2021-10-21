@@ -7,7 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/PuerkitoBio/goquery"
 	iconv "github.com/djimenez/iconv-go"
@@ -25,15 +28,44 @@ func init() {
 }
 
 func main() {
-	for i := 0; i < *count; i++ {
-		single, double := mustFetchNames()
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGSTOP)
 
+	for i := 1; i <= *count; i++ {
+		fmt.Printf("当前获取字库次数 %d (Ctrl+C停止)\n", i)
+
+		single, double := mustFetchNames()
 		singleNames = append(singleNames, single...)
 		doubleNames = append(doubleNames, double...)
+
+		singleNames = uniq(singleNames)
+		doubleNames = uniq(doubleNames)
+
+		fmt.Printf("单名字库数量 %d\n", len(singleNames))
+		fmt.Printf("双名字库数量 %d\n", len(doubleNames))
+
+		select {
+		case <-ch:
+			break
+		default:
+		}
 	}
 
 	mustWriteFile(singleNames, *sout)
 	mustWriteFile(doubleNames, *dout)
+}
+
+func uniq(names []string) []string {
+	set := map[string]bool{}
+	for _, n := range names {
+		set[n] = true
+	}
+
+	res := []string{}
+	for k, _ := range set {
+		res = append(res, k)
+	}
+	return res
 }
 
 func mustWriteFile(names []string, out string) {
